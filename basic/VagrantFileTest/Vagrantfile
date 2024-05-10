@@ -2,7 +2,7 @@
 #On a first instance the goal is to have both machines running seperately and then have them communicate
 #VMs will be running ubuntu/bionic64. If problems arise /focal64 may be used or try: generic/ubuntu2004
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/bionic64"
+  config.vm.box = "generic/ubuntu2004"
 
     #BOTH VMs ----------------------------------------------------
     #Update all apps and install jdk 17
@@ -16,7 +16,7 @@ Vagrant.configure("2") do |config|
     #DATABASE VM -------------------------------------------------
       config.vm.define "db" do |db|
       #SET MACHINE UBUNTU VERSION, NAME AND IP
-      db.vm.box = "ubuntu/bionic64"
+      db.vm.box = "generic/ubuntu2004"
       db.vm.hostname = "db"
       db.vm.network "private_network", ip: "192.168.56.11"
       #PORT FORWARD CONNECTION. H2 CONSOLE 8082, DATA 9092
@@ -52,13 +52,11 @@ Vagrant.configure("2") do |config|
       set -e
 
       #Install Tomcat (we had to install it manually it on because sudo apt install never found tomcat10)
-      #wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.0.18/bin/apache-tomcat-10.0.18.tar.gz
-      #tar -xvf apache-tomcat-10.0.18.tar.gz
-      #sudo mv apache-tomcat-10.0.18 /opt/tomcat10
-      #sudo ln -s /opt/tomcat10 /usr/local/tomcat10
-      #sudo chown -R vagrant:vagrant /opt/tomcat10
-
-      #LETS TEMPORARILY IGNORE TOMCAT DEPLOYMENT
+      wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.0.18/bin/apache-tomcat-10.0.18.tar.gz
+      tar -xvf apache-tomcat-10.0.18.tar.gz
+      sudo mv apache-tomcat-10.0.18 /opt/tomcat10
+      sudo ln -s /opt/tomcat10 /usr/local/tomcat10
+      sudo chown -R vagrant:vagrant /opt/tomcat10
 
 
       #Clone repository, go to project root and change permissions of gradle wrapper
@@ -71,13 +69,13 @@ Vagrant.configure("2") do |config|
       #INSTEAD OF DOING STRAIGHT GRADLE BOOTRUN, REDIRECT ERROR OUTPUT TO A LOG
       #Update: since we'll be shooting out generated Web archive file into tomcat we no longer need to start
       #the spring application up manually
-      nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
+      #nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
 
       #COPY WAR FILE GENERATED AFTER GRADLE BUILD INTO TOMCAT WEBAPPS
-      #sudo cp ./build/libs/basic-0.0.1-SNAPSHOT.war /opt/tomcat10/webapps
+      sudo cp ./build/libs/basic-0.0.1-SNAPSHOT.war /opt/tomcat10/webapps
 
       #STARTUP TOMCAT
-      #/opt/tomcat10/bin/startup.sh
+      /opt/tomcat10/bin/startup.sh
       SHELL
       #-------------------------------------------------------------
       end
