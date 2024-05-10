@@ -1,0 +1,79 @@
+#Setting up 2 VM Machines: 1 to run the Spring app and the other an instance of H2 database
+#On a first instance the goal is to have both machines running seperately and then have them communicate
+#VMs will be running ubuntu/bionic64. If problems arise /focal64 may be used or try: generic/ubuntu2004
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/bionic64"
+
+    #BOTH VMs ----------------------------------------------------
+    #Update all apps and install jdk 17
+     config.vm.provision "shell", inline: <<-SHELL
+     sudo apt-get update -y
+     sudo apt-get install -y iputils-ping avahi-daemon libnss-mdns unzip \ openjdk-17-jdk-headless
+     SHELL
+    #-------------------------------------------------------------
+
+
+    #DATABASE VM -------------------------------------------------
+      config.vm.define "db" do |db|
+      #SET MACHINE UBUNTU VERSION, NAME AND IP
+      db.vm.box = "ubuntu/bionic64"
+      db.vm.hostname = "db"
+      db.vm.network "private_network", ip: "192.168.56.11"
+      #PORT FORWARD CONNECTION. H2 CONSOLE 8082, DATA 9092
+      db.vm.network "forwarded_port", guest: 8082, host: 8082
+      db.vm.network "forwarded_port", guest: 9092, host: 9092
+
+      # DOWNLOAD H2 VERSION 1.4.200. VERSION 2.1.214 WAS ALSO TRIED BUT PROBLEMS WERE ENCOUNTERED. CHECK LATER?
+      db.vm.provision "shell", inline: <<-SHELL
+      wget https://repo1.maven.org/maven2/com/h2database/h2/1.4.200/h2-1.4.200.jar
+      SHELL
+
+      db.vm.provision "shell", :run => 'always', inline: <<-SHELL
+      java -cp ./h2*.jar org.h2.tools.Server -web -webAllowOthers -tcp -tcpAllowOthers -ifNotExists > ~/out.txt &
+      SHELL
+      end
+    #-------------------------------------------------------------
+
+    #WEB VM ------------------------------------------------------
+    config.vm.define "web" do |web|
+      #SET MACHINE UBUNTU VERSION, NAME AND IP
+      web.vm.box = "ubuntu/bionic64"
+      web.vm.hostname = "web"
+      web.vm.network "private_network", ip: "192.168.56.10"
+
+      #SET RAM AMOUNT FOR VM TO 1GB
+      web.vm.provider "virtualbox" do |v|
+          v.memory = 1024
+      end
+      #PORT FORWARD APPLICATIONS TO PORT 8080
+      web.vm.network "forwarded_port", guest: 8080, host: 8080
+      web.vm.provision "shell", inline: <<-SHELL, privileged: true
+      # Use set -e command to exit if any command fails
+      set -e
+
+      #Install Tomcat (we had to install it manually it on because sudo apt install never found tomcat10)
+      wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.0.18/bin/apache-tomcat-10.0.18.tar.gz
+      tar -xvf apache-tomcat-10.0.18.tar.gz
+      sudo mv apache-tomcat-10.0.18 /opt/tomcat10
+      sudo ln -s /opt/tomcat10 /usr/local/tomcat10
+      sudo chown -R vagrant:vagrant /opt/tomcat10
+      /opt/tomcat10/bin/startup.sh
+
+      #Clone repository, go to project root and change permissions of gradle wrapper
+      git clone https://github.com/sepsilva/testDevops
+      cd testDevops/basic
+      chmod u+x gradlew
+
+      ./gradlew build
+
+      #INSTEAD OF DOING STRAIGHT GRADLE BOOTRUN, REDIRECT ERROR OUTPUT TO A LOG
+      nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
+      SHELL
+      #-------------------------------------------------------------
+      end
+end
+
+
+
+
+
