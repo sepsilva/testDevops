@@ -57,7 +57,7 @@ Vagrant.configure("2") do |config|
       sudo mv apache-tomcat-10.0.18 /opt/tomcat10
       sudo ln -s /opt/tomcat10 /usr/local/tomcat10
       sudo chown -R vagrant:vagrant /opt/tomcat10
-      /opt/tomcat10/bin/startup.sh
+
 
       #Clone repository, go to project root and change permissions of gradle wrapper
       git clone https://github.com/sepsilva/testDevops
@@ -67,7 +67,15 @@ Vagrant.configure("2") do |config|
       ./gradlew build
 
       #INSTEAD OF DOING STRAIGHT GRADLE BOOTRUN, REDIRECT ERROR OUTPUT TO A LOG
-      nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
+      #Update: since we'll be shooting out generated Web archive file into tomcat we no longer need to start
+      #the spring application up manually
+      #nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
+
+      #COPY WAR FILE GENERATED AFTER GRADLE BUILD INTO TOMCAT WEBAPPS
+      sudo cp ./build/libs/basic-0.0.1-SNAPSHOT.war /opt/tomcat10/webapps
+
+      #STARTUP TOMCAT
+      /opt/tomcat10/bin/startup.sh
       SHELL
       #-------------------------------------------------------------
       end
