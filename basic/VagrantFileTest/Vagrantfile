@@ -1,8 +1,12 @@
 #Setting up 2 VM Machines: 1 to run the Spring app and the other an instance of H2 database
-#On a first instance the goal is to have both machines running seperately and then have them communicate
-#VMs will be running ubuntu/bionic64. If problems arise /focal64 may be used or try: generic/ubuntu2004
+#On a first instance the goal is to have both machines running separate and then have them communicate.
+#To change this the line to bootrun using gradlewrapper must be commented and war file deployed to tomcat server
+#Then server must be executed
+#------------------------------------------------------------------------------------
+
+#VMs will be running ubuntu/bionic64
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/ubuntu2004"
+  config.vm.box = "ubuntu/bionic64"
 
     #BOTH VMs ----------------------------------------------------
     #Update all apps and install jdk 17
@@ -16,7 +20,7 @@ Vagrant.configure("2") do |config|
     #DATABASE VM -------------------------------------------------
       config.vm.define "db" do |db|
       #SET MACHINE UBUNTU VERSION, NAME AND IP
-      db.vm.box = "generic/ubuntu2004"
+      db.vm.box = "ubuntu/bionic64"
       db.vm.hostname = "db"
       db.vm.network "private_network", ip: "192.168.56.11"
       #PORT FORWARD CONNECTION. H2 CONSOLE 8082, DATA 9092
@@ -48,27 +52,27 @@ Vagrant.configure("2") do |config|
       #PORT FORWARD APPLICATIONS TO PORT 8080
       web.vm.network "forwarded_port", guest: 8080, host: 8080
       web.vm.provision "shell", inline: <<-SHELL, privileged: true
-      # Use set -e command to exit if any command fails
+
+      #USE SET -E COMMAND TO EXIT AUTOMATICALLY IF ANY SHELL COMMAND FAILS
       set -e
 
-      #Install Tomcat (we had to install it manually it on because sudo apt install never found tomcat10)
+      #INSTALL TOMCAT10 (MANUALLY INSTALL IS DONE BECAUSE sudo apt install tomcat10 fails)
       wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.0.18/bin/apache-tomcat-10.0.18.tar.gz
       tar -xvf apache-tomcat-10.0.18.tar.gz
       sudo mv apache-tomcat-10.0.18 /opt/tomcat10
       sudo ln -s /opt/tomcat10 /usr/local/tomcat10
       sudo chown -R vagrant:vagrant /opt/tomcat10
 
-
-      #Clone repository, go to project root and change permissions of gradle wrapper
+      #CLONE REPO AND CHANGE GRADLE WRAPPER PERMISSIONS AND EXECUTE BUILD
       git clone https://github.com/sepsilva/testDevops
       cd testDevops/basic
       chmod u+x gradlew
-
       ./gradlew build
 
-      #INSTEAD OF DOING STRAIGHT GRADLE BOOTRUN, REDIRECT ERROR OUTPUT TO A LOG
-      #Update: since we'll be shooting out generated Web archive file into tomcat we no longer need to start
-      #the spring application up manually
+      #INSTEAD OF USING GRADLE BOOTRUN, REDIRECT ERROR OUTPUT TO A LOG
+      #Update: since we'll be deploying the generated Web archive file to our
+      #tomcat10 we no longer need to start the spring application up manually
+
       #nohup ./gradlew bootRun > /home/vagrant/spring-boot-app.log 2>&1 &
 
       #COPY WAR FILE GENERATED AFTER GRADLE BUILD INTO TOMCAT WEBAPPS
